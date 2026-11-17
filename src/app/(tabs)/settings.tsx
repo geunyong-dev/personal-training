@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Switch } from 'react-native';
 
 import { exportCsv } from '@/lib/export';
-import { fetchMcpAudit, MCP_URL, signOut, type McpAuditRow } from '@/lib/supabase';
+import { fetchMcpAudit, listOAuthGrants, MCP_URL, revokeOAuthGrant, signOut, type McpAuditRow } from '@/lib/supabase';
 import { useApp } from '@/store/app-store';
 import { confirm, notice } from '@/ui/confirm';
 import { Button, Card, Chip, Row, Screen, Section, Text } from '@/ui/kit';
@@ -14,10 +14,13 @@ const REST_OPTIONS = [60, 90, 120, 150, 180];
 export default function Settings() {
   const st = useApp();
   const [audit, setAudit] = useState<McpAuditRow[]>([]);
+  const [grants, setGrants] = useState<Awaited<ReturnType<typeof listOAuthGrants>>>([]);
 
-  useEffect(() => {
+  const load = () => {
     void fetchMcpAudit(10).then(setAudit);
-  }, []);
+    void listOAuthGrants().then(setGrants);
+  };
+  useEffect(load, []);
 
   return (
     <Screen>
@@ -29,7 +32,7 @@ export default function Settings() {
           <Text v="small" dim>
             주 {st.profile?.weeklyFreq}회 · {goalKo(st.profile?.goal)}
           </Text>
-          <Button small kind="secondary" title="프로필·목표 수정" onPress={() => router.push('/onboarding/profile?edit=1')} />
+          <Button small kind="secondary" title="프로필·목표 수정" onPress={() => router.push('/profile')} />
         </Card>
       </Section>
 
@@ -56,9 +59,28 @@ export default function Settings() {
               </Row>
             ))
           )}
-          <Text v="small" faint>
-            연결 해제는 Claude 앱의 커넥터 설정에서 할 수 있어요. 해제해도 기록과 열람은 계속 쓸 수 있어요.
-          </Text>
+          {grants.map((g) => (
+            <Row key={g.client.id} style={{ justifyContent: 'space-between' }}>
+              <Text>{g.client.name}</Text>
+              <Button
+                small
+                kind="danger"
+                title="연결 해제"
+                onPress={async () => {
+                  if (!(await confirm('연결 해제', `${g.client.name}의 접근 권한을 회수할까요? 기록과 열람은 계속 쓸 수 있어요.`, '해제', true))) return;
+                  if (await revokeOAuthGrant(g.client.id)) {
+                    st.setClaudeConnected(false);
+                    load();
+                  } else notice('해제에 실패했어요');
+                }}
+              />
+            </Row>
+          ))}
+          {grants.length === 0 ? (
+            <Text v="small" faint>
+              연결된 Claude가 없어요. 커넥터 주소를 Claude에 추가하면 다시 연결돼요.
+            </Text>
+          ) : null}
         </Card>
       </Section>
 

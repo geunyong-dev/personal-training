@@ -38,6 +38,16 @@ export default function Home() {
         </Card>
       ) : null}
 
+      {!st.claudeConnected ? (
+        <Card style={{ borderColor: C.info, borderWidth: 1 }}>
+          <Text v="h3">Claude 연결이 끊겨 있어요</Text>
+          <Text v="small" dim>
+            기록은 계속 쓸 수 있어요. 루틴 제안을 받으려면 설정의 커넥터 주소를 Claude에 다시 추가하세요.
+          </Text>
+          <Button small kind="secondary" title="설정 열기" onPress={() => router.navigate('/settings')} />
+        </Card>
+      ) : null}
+
       {proposals.length > 0 ? (
         <Card style={{ borderColor: C.info, borderWidth: 1 }}>
           <Row>
