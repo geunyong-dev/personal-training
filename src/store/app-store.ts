@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { EXERCISES } from '@/data/exercises';
-import { detectNewPRs, mergePRs } from '@/domain/calc';
+import { detectNewPRs, mergePRs, recomputePRs } from '@/domain/calc';
 import { recommendRoutines } from '@/domain/recommend';
 import { canAddSet, isSavable, resolveRestSec, shouldAutoClose } from '@/domain/rules';
 import type {
@@ -301,10 +301,14 @@ export const useApp = create<AppState>()(
           set((st) => ({ sessions: st.sessions.filter((s) => !!s.endedAt) })),
 
         deleteSession: (id) =>
-          set((st) => ({
-            sessions: st.sessions.filter((s) => s.id !== id),
-            tombstones: [...st.tombstones, { table: 'sessions', id, at: nowIso() }],
-          })),
+          set((st) => {
+            const sessions = st.sessions.filter((s) => s.id !== id);
+            return {
+              sessions,
+              prs: recomputePRs(sessions), // 지운 세션에서 나온 PR은 다시 계산
+              tombstones: [...st.tombstones, { table: 'sessions', id, at: nowIso() }],
+            };
+          }),
 
         runAutoClose: () => {
           const active = selectActiveSession(get());

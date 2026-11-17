@@ -65,3 +65,20 @@ it('Claude 제안 루틴은 승인 전까지 proposed', () => {
   useApp.getState().approveProposal('r1');
   expect(useApp.getState().routines[0].status).toBe('active');
 });
+
+it('세션을 지우면 PR을 다시 계산한다', () => {
+  for (const w of [60, 70]) {
+    useApp.getState().startSession();
+    useApp.getState().addExerciseToSession('bench-press');
+    const a = selectActiveSession(useApp.getState())!;
+    const ex = a.exercises[0];
+    useApp.getState().updateSet(ex.id, ex.sets[0].id, { weight: w, reps: 5 });
+    useApp.getState().toggleSetComplete(ex.id, ex.sets[0].id);
+    useApp.getState().finishSession();
+  }
+  const max = () => useApp.getState().prs.find((p) => p.type === 'max_weight')?.value;
+  expect(max()).toBe(70);
+  const heavy = useApp.getState().sessions.find((s) => s.exercises[0].sets[0].weight === 70)!;
+  useApp.getState().deleteSession(heavy.id);
+  expect(max()).toBe(60);
+});

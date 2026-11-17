@@ -82,6 +82,14 @@ export function detectNewPRs(
   return fresh;
 }
 
+/** 남은 세션 전체로 PR을 다시 계산 (세션 삭제 후) */
+export function recomputePRs(sessions: Session[]): PersonalRecord[] {
+  let prs: PersonalRecord[] = [];
+  const done = sessions.filter((s) => !!s.endedAt).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  for (const s of done) prs = mergePRs(prs, detectNewPRs(s, prs));
+  return prs;
+}
+
 export function mergePRs(existing: PersonalRecord[], fresh: PersonalRecord[]): PersonalRecord[] {
   const key = (p: PersonalRecord) => `${p.exerciseId}:${p.type}`;
   const map = new Map(existing.map((p) => [key(p), p]));
