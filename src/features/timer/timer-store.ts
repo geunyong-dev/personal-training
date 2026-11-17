@@ -6,7 +6,6 @@ import { persist } from 'zustand/middleware';
 import { clampRest, LIMITS } from '@/domain/rules';
 import { persistStorage } from '@/store/storage';
 
-import { endRestActivity, showRestActivity } from './live-activity';
 import { cancelRestNotifications, scheduleRestNotifications, type ScheduledIds } from './notify';
 
 export type RestContext = { exerciseName: string; nextSetLabel: string };
@@ -37,7 +36,7 @@ export const useRestTimer = create<TimerState>()(
   persist(
     (set, get) => {
       const reschedule = async (endsAt: number, startMs: number) => {
-        const { context, scheduled, sound, pausedRemainingMs } = get();
+        const { context, scheduled, sound } = get();
         await cancelRestNotifications(scheduled);
         const label = context ? `${context.exerciseName} · 다음 ${context.nextSetLabel}` : '';
         const ids = await scheduleRestNotifications(endsAt, label, {
@@ -45,22 +44,12 @@ export const useRestTimer = create<TimerState>()(
           warnBeforeSec: LIMITS.restWarnBeforeEndSec,
         });
         set({ scheduled: ids });
-        if (context) {
-          await showRestActivity({
-            startMs,
-            endMs: endsAt,
-            exerciseName: context.exerciseName,
-            nextSetLabel: context.nextSetLabel,
-            pausedAtMs: pausedRemainingMs != null ? Date.now() : undefined,
-          });
-        }
       };
 
       const clear = async () => {
         const { scheduled } = get();
         set({ startMs: null, endsAt: null, pausedRemainingMs: null, context: null, scheduled: null, sheetVisible: false });
         await cancelRestNotifications(scheduled);
-        await endRestActivity();
       };
 
       return {
@@ -105,21 +94,12 @@ export const useRestTimer = create<TimerState>()(
         },
 
         pause: async () => {
-          const { endsAt, scheduled, startMs, context } = get();
+          const { endsAt, scheduled } = get();
           if (!endsAt) return;
           const remaining = Math.max(0, endsAt - Date.now());
           set({ endsAt: null, pausedRemainingMs: remaining });
           await cancelRestNotifications(scheduled);
           set({ scheduled: null });
-          if (context && startMs) {
-            await showRestActivity({
-              startMs,
-              endMs: Date.now() + remaining,
-              exerciseName: context.exerciseName,
-              nextSetLabel: context.nextSetLabel,
-              pausedAtMs: Date.now(),
-            });
-          }
         },
 
         resume: async () => {
@@ -142,7 +122,6 @@ export const useRestTimer = create<TimerState>()(
           if (left <= 0) {
             // 알림은 이미 울렸으니 상태만 정리
             set({ startMs: null, endsAt: null, context: null, scheduled: null, sheetVisible: false });
-            void endRestActivity();
             return 0;
           }
           return left;

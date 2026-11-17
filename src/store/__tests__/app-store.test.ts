@@ -12,68 +12,57 @@ jest.mock('@/store/storage', () => {
   };
 });
 
-const profile = {
-  nickname: '근용',
-  goal: 'muscle' as const,
-  level: 'intermediate' as const,
-  weeklyFreq: 4,
-  equipment: ['barbell', 'dumbbell', 'machine', 'cable'] as const,
-  consentBody: false,
-};
-
 beforeEach(() => useApp.getState().resetAll());
 
-it('온보딩 완료 시 추천 루틴이 생긴다', () => {
-  useApp.getState().saveProfile({ ...profile, equipment: [...profile.equipment] });
-  useApp.getState().completeOnboarding();
-  const { routines, onboarded } = useApp.getState();
-  expect(onboarded).toBe(true);
-  expect(routines).toHaveLength(2);
+it('기기 인증은 한 번만: 다시 호출해도 같은 사용자', () => {
+  const a = useApp.getState().authenticate('근용');
+  const b = useApp.getState().authenticate('다른이름');
+  expect(b.id).toBe(a.id);
+  expect(b.nickname).toBe('근용');
 });
 
-it('루틴으로 세션 시작 → 세트 완료 → 종료하면 PR이 잡힌다', () => {
-  useApp.getState().saveProfile({ ...profile, equipment: [...profile.equipment] });
-  useApp.getState().completeOnboarding();
-  const routine = useApp.getState().routines[0];
-  useApp.getState().startSession(routine.id);
-
-  const active = selectActiveSession(useApp.getState())!;
-  const first = active.exercises[0];
-  useApp.getState().updateSet(first.id, first.sets[0].id, { weight: 60, reps: 8 });
-  const rest = useApp.getState().toggleSetComplete(first.id, first.sets[0].id);
-  expect(rest).toBeGreaterThanOrEqual(10);
-
-  const result = useApp.getState().finishSession();
-  expect(result.saved).toBe(true);
-  expect(result.newPRs.some((p) => p.type === 'max_weight' && p.value === 60)).toBe(true);
-  const saved = useApp.getState().sessions.find((s) => s.id === result.sessionId)!;
-  // 미완료 세트·운동은 저장되지 않는다
-  expect(saved.exercises).toHaveLength(1);
-  expect(saved.exercises[0].sets).toHaveLength(1);
+it('요일 계획 저장·삭제', () => {
+  useApp.getState().setDayPlan(2, { title: '하체', items: [{ exerciseId: 'back-squat', sets: 5, reps: 5, weightKg: 100 }] });
+  expect(useApp.getState().plan.days[2]?.items).toHaveLength(1);
+  useApp.getState().setDayPlan(2, null);
+  expect(useApp.getState().plan.days[2]).toBeUndefined();
 });
 
-it('완료 세트가 없으면 세션을 저장하지 않는다', () => {
-  useApp.getState().startSession();
-  useApp.getState().addExerciseToSession('bench-press');
-  expect(useApp.getState().finishSession().saved).toBe(false);
-  expect(useApp.getState().sessions).toHaveLength(0);
+it('계획으로 시작 → 지금 세트 완료 → 종료하면 기록·PR 저장', () => {
+  useApp.getState().setDayPlan(0, { items: [{ exerciseId: 'bench-press', sets: 2, reps: 8, weightKg: 60 }] });
+  expect(useApp.getState().startSessionFromPlan(0)).toBeTruthy();
+  const ex = selectActiveSession(useApp.getState())!.exercises[0];
+  expect(useApp.getState().completeCurrentSet(ex.id)).toBeGreaterThanOrEqual(10);
+  const after = selectActiveSession(useApp.getState())!.exercises[0];
+  expect(after.sets.filter((s) => s.completedAt)).toHaveLength(1);
+
+  const res = useApp.getState().finishSession();
+  expect(res.saved).toBe(true);
+  expect(res.newPRs.some((p) => p.type === 'max_weight' && p.value === 60)).toBe(true);
+  const saved = useApp.getState().sessions.find((s) => s.id === res.sessionId)!;
+  expect(saved.exercises[0].sets).toHaveLength(1); // 미완료 세트는 빠진다
+  expect(saved.planDay).toBe(0);
 });
 
-it('Claude 제안 루틴은 승인 전까지 proposed', () => {
-  useApp.getState().upsertRoutine({ id: 'r1', name: '제안', source: 'claude', status: 'proposed', items: [] });
-  expect(useApp.getState().routines[0].status).toBe('proposed');
-  useApp.getState().approveProposal('r1');
-  expect(useApp.getState().routines[0].status).toBe('active');
+it('계획이 없는 요일은 시작하지 않는다', () => {
+  expect(useApp.getState().startSessionFromPlan(3)).toBeNull();
 });
 
-it('세션을 지우면 PR을 다시 계산한다', () => {
+it('서버 계획은 더 최신일 때만 반영', () => {
+  useApp.getState().setDayPlan(1, { items: [{ exerciseId: 'deadlift', sets: 3, reps: 5 }] });
+  const local = useApp.getState().plan;
+  useApp.getState().applyServerPlan({ days: {}, updatedAt: '2000-01-01T00:00:00.000Z' });
+  expect(useApp.getState().plan).toBe(local);
+  useApp.getState().applyServerPlan({ days: { 4: { items: [{ exerciseId: 'pull-up', sets: 3, reps: 8 }], source: 'claude', updatedAt: '2999-01-01T00:00:00.000Z' } }, updatedAt: '2999-01-01T00:00:00.000Z' });
+  expect(useApp.getState().plan.days[4]?.source).toBe('claude');
+});
+
+it('세션을 지우면 PR을 다시 계산하고 삭제 목록에 남긴다', () => {
   for (const w of [60, 70]) {
-    useApp.getState().startSession();
-    useApp.getState().addExerciseToSession('bench-press');
-    const a = selectActiveSession(useApp.getState())!;
-    const ex = a.exercises[0];
-    useApp.getState().updateSet(ex.id, ex.sets[0].id, { weight: w, reps: 5 });
-    useApp.getState().toggleSetComplete(ex.id, ex.sets[0].id);
+    useApp.getState().setDayPlan(0, { items: [{ exerciseId: 'bench-press', sets: 1, reps: 5, weightKg: w }] });
+    useApp.getState().startSessionFromPlan(0);
+    const ex = selectActiveSession(useApp.getState())!.exercises[0];
+    useApp.getState().completeCurrentSet(ex.id);
     useApp.getState().finishSession();
   }
   const max = () => useApp.getState().prs.find((p) => p.type === 'max_weight')?.value;
@@ -81,4 +70,5 @@ it('세션을 지우면 PR을 다시 계산한다', () => {
   const heavy = useApp.getState().sessions.find((s) => s.exercises[0].sets[0].weight === 70)!;
   useApp.getState().deleteSession(heavy.id);
   expect(max()).toBe(60);
+  expect(useApp.getState().deletedSessionIds).toContain(heavy.id);
 });

@@ -16,6 +16,7 @@ export function SetRow({
   unit,
   hint,
   bodyweight,
+  current,
   onChange,
   onToggle,
   onRemove,
@@ -25,6 +26,7 @@ export function SetRow({
   unit: Unit;
   hint?: WorkoutSet; // 직전 기록 (회색 힌트, 5.2)
   bodyweight?: boolean;
+  current?: boolean; // 지금 할 세트 (하단 '세트 완료'의 대상)
   onChange: (patch: Partial<WorkoutSet>) => void;
   onToggle: () => void;
   onRemove: () => void;
@@ -54,7 +56,7 @@ export function SetRow({
   const nextKind = () => onChange({ kind: KIND_ORDER[(KIND_ORDER.indexOf(set.kind) + 1) % KIND_ORDER.length] });
 
   return (
-    <View style={[styles.row, done && styles.rowDone]}>
+    <View style={[styles.row, done && styles.rowDone, current && styles.rowCurrent]}>
       <Pressable onPress={nextKind} onLongPress={onRemove} style={styles.idx} accessibilityLabel="세트 종류 바꾸기, 길게 누르면 삭제">
         <Text v="h3" color={set.kind === 'normal' ? C.textDim : C.warn}>
           {KIND_LABEL[set.kind] || index + 1}
@@ -69,7 +71,10 @@ export function SetRow({
         <TextInput
           style={styles.input}
           value={w}
-          onChangeText={setW}
+          onChangeText={(t) => {
+            setW(t);
+            commitWeight(t);
+          }}
           onEndEditing={(e) => commitWeight(e.nativeEvent.text)}
           onBlur={() => commitWeight(w)}
           keyboardType="decimal-pad"
@@ -84,7 +89,10 @@ export function SetRow({
       <TextInput
         style={styles.input}
         value={r}
-        onChangeText={setR}
+        onChangeText={(t) => {
+          setR(t);
+          commitReps(t);
+        }}
         onEndEditing={(e) => commitReps(e.nativeEvent.text)}
         onBlur={() => commitReps(r)}
         keyboardType="number-pad"
@@ -138,6 +146,7 @@ export function SetHeader({ unit, bodyweight }: { unit: Unit; bodyweight?: boole
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: 4, borderRadius: R.sm },
   rowDone: { backgroundColor: '#1D2A12' },
+  rowCurrent: { borderWidth: 1, borderColor: C.accent },
   idx: { width: 32, alignItems: 'center', textAlign: 'center' },
   hint: { flex: 1 },
   input: {

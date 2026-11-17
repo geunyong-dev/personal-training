@@ -4,12 +4,14 @@ import { FlatList, Pressable, View } from 'react-native';
 
 import { BODY_PART_KO, EQUIPMENT_KO } from '@/data/exercises';
 import type { BodyPart, Equipment, Exercise } from '@/domain/types';
-import { allExercises, useApp } from '@/store/app-store';
+import { lastSetsFor } from '@/domain/calc';
+import { allExercises, selectFinishedSessions, useApp } from '@/store/app-store';
+import { usePlanDraft } from '@/store/plan-draft';
 import { Button, Card, Chip, Field, Icon, Row, Text } from '@/ui/kit';
 import { IC } from '@/ui/icons';
 import { C, S } from '@/ui/theme';
 
-/** for=session → 진행 중 세션에 추가, for=<routineId> → 해당 루틴에 추가 */
+/** for=session → 진행 중 세션에 추가, for=plan → 편집 중인 계획 초안에 추가 */
 export default function ExercisePicker() {
   const params = useLocalSearchParams<{ for: string }>();
   const st = useApp();
@@ -30,8 +32,10 @@ export default function ExercisePicker() {
     if (params.for === 'session') {
       st.addExerciseToSession(e.id);
     } else {
-      const r = st.routines.find((x) => x.id === params.for);
-      if (r) st.upsertRoutine({ ...r, items: [...r.items, { exerciseId: e.id, targetSets: 3, targetReps: 10 }] });
+      // 직전 기록이 있으면 그 무게·횟수로 시작
+      const last = lastSetsFor(e.id, selectFinishedSessions(st)).filter((x) => x.kind !== 'warmup');
+      const top = last.reduce<(typeof last)[number] | undefined>((a, x) => (!a || x.weight > a.weight ? x : a), undefined);
+      usePlanDraft.getState().add(e.id, top ? { weightKg: top.weight, reps: top.reps, sets: Math.max(1, last.length) } : undefined);
     }
     router.back();
   };

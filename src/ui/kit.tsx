@@ -199,6 +199,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
   },
+  stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface2, borderRadius: R.md, overflow: 'hidden' },
+  stepBtn: { width: 34, height: 40, alignItems: 'center', justifyContent: 'center' },
+  stepInput: { width: 48, color: C.text, fontSize: 17, fontWeight: '600', textAlign: 'center', fontVariant: ['tabular-nums'] },
   input: {
     backgroundColor: C.surface2,
     color: C.text,
@@ -208,3 +211,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+/** − 값 + 스테퍼 (계획 페이지의 세트·횟수·무게) */
+export function Stepper({
+  label,
+  value,
+  step,
+  min,
+  max,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  min: number;
+  max: number;
+  suffix?: string;
+  onChange: (v: number) => void;
+}) {
+  const set = (v: number) => onChange(Math.min(max, Math.max(min, Math.round(v * 100) / 100)));
+  return (
+    <View style={{ flex: 1, gap: S.xs, alignItems: 'center' }}>
+      <Text v="small" dim>
+        {label}
+      </Text>
+      <View style={styles.stepper}>
+        <Pressable accessibilityLabel={`${label} 줄이기`} onPress={() => set(value - step)} style={styles.stepBtn}>
+          <Text v="h3">−</Text>
+        </Pressable>
+        <TextInput
+          value={String(value)}
+          onChangeText={(t) => {
+            const n = Number(t.replace(',', '.'));
+            if (Number.isFinite(n)) set(n);
+          }}
+          keyboardType="decimal-pad"
+          selectTextOnFocus
+          style={styles.stepInput}
+          accessibilityLabel={label}
+        />
+        <Pressable accessibilityLabel={`${label} 늘리기`} onPress={() => set(value + step)} style={styles.stepBtn}>
+          <Text v="h3">+</Text>
+        </Pressable>
+      </View>
+      {suffix ? (
+        <Text v="small" faint>
+          {suffix}
+        </Text>
+      ) : null}
+    </View>
+  );
+}

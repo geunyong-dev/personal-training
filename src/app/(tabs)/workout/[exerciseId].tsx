@@ -4,10 +4,12 @@ import { View } from 'react-native';
 
 import { BODY_PART_KO, EQUIPMENT_KO } from '@/data/exercises';
 import { lastSetsFor } from '@/domain/calc';
+import { currentSetIndex, FOOTER_LABEL, footerAction } from '@/domain/plan';
 import { LIMITS } from '@/domain/rules';
+import { ElapsedClock } from '@/features/session/ElapsedClock';
 import { SetHeader, SetRow } from '@/features/session/SetRow';
 import { WorkoutShell } from '@/features/session/WorkoutShell';
-import { finishWorkout, openRest, toggleSet } from '@/features/session/workout-actions';
+import { completeAndFinish, completeAndGoNext, completeCurrentSet, openRest, toggleSet } from '@/features/session/workout-actions';
 import { findExercise, selectActiveSession, selectFinishedSessions, useApp } from '@/store/app-store';
 import { confirm, notice } from '@/ui/confirm';
 import { Button, Card, Empty, Row, Screen, Text } from '@/ui/kit';
@@ -15,8 +17,9 @@ import { IC } from '@/ui/icons';
 import { C, S } from '@/ui/theme';
 
 /**
- * 운동 한 항목 페이지: 세트 기록 + 휴식 타이머 바텀시트
- * 하단: 휴식 타이머 / 다음 운동 (마지막 운동이면 운동 완료)
+ * 운동 한 항목 페이지
+ * - 상단 헤더: 전체 운동 타이머 / 휴식 타이머는 바텀시트 (요구사항 8)
+ * - 하단: [휴식 타이머 | 세트 완료] → 마지막 세트면 [휴식 타이머 | 다음 운동] → 마지막 운동의 마지막 세트면 [휴식 타이머 | 운동 완료] (요구사항 9)
  */
 export default function ExerciseDetail() {
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
@@ -42,25 +45,31 @@ export default function ExerciseDetail() {
   const bw = def?.type === 'bodyweight';
   const hints = lastSetsFor(ex.exerciseId, history, session.id);
   const total = session.exercises.length;
-  const isLast = index === total - 1;
-  const done = ex.sets.filter((x) => x.completedAt).length;
+  const cur = currentSetIndex(ex);
+  const action = footerAction(session, index);
   const next = session.exercises[index + 1];
+
+  const onPrimary = () => {
+    if (action === 'complete_set') void completeCurrentSet(ex.id);
+    else if (action === 'next_exercise') void completeAndGoNext(ex.id);
+    else void completeAndFinish(ex.id);
+  };
 
   return (
     <WorkoutShell
       edges={[]}
       onRest={() => openRest(index)}
-      primary={
-        isLast
-          ? { title: '운동 완료', icon: 'done', onPress: () => void finishWorkout() }
-          : {
-              title: '다음 운동',
-              icon: 'next',
-              // replace: 뒤로 가기는 항상 오늘의 운동 목록으로
-              onPress: () => router.replace({ pathname: '/workout/[exerciseId]', params: { exerciseId: next.id } }),
-            }
-      }>
-      <Stack.Screen options={{ title: `운동 ${index + 1}/${total}` }} />
+      primary={{
+        title: action === 'complete_set' ? `${FOOTER_LABEL.complete_set} (${cur + 1}/${ex.sets.length})` : FOOTER_LABEL[action],
+        icon: action === 'complete_set' ? 'set' : action === 'finish' ? 'done' : 'next',
+        onPress: onPrimary,
+      }}>
+      <Stack.Screen
+        options={{
+          title: `운동 ${index + 1}/${total}`,
+          headerRight: () => <ElapsedClock startedAt={session.startedAt} />,
+        }}
+      />
 
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, gap: 2 }}>
@@ -87,7 +96,7 @@ export default function ExerciseDetail() {
         <Row style={{ justifyContent: 'space-between' }}>
           <Text v="h3">세트</Text>
           <Text v="small" dim>
-            {done}/{ex.sets.length} 완료
+            {ex.sets.filter((x) => x.completedAt).length}/{ex.sets.length} 완료
           </Text>
         </Row>
         <SetHeader unit={unit} bodyweight={bw} />
@@ -101,6 +110,7 @@ export default function ExerciseDetail() {
               set={set}
               unit={unit}
               bodyweight={bw}
+              current={i === cur}
               hint={sameKind[nth] ?? sameKind.at(-1) ?? hints.at(-1)}
               onChange={(patch) => st.updateSet(ex.id, set.id, patch)}
               onToggle={() => void toggleSet(ex.id, set.id)}
@@ -119,7 +129,7 @@ export default function ExerciseDetail() {
           }}
         />
         <Text v="small" faint>
-          번호를 누르면 세트 종류(웜업 W·드롭 D·실패 F)가 바뀌고, 길게 누르면 삭제돼요.
+          테두리가 있는 줄이 지금 세트예요. 번호를 누르면 세트 종류(웜업 W·드롭 D·실패 F)가 바뀌고, 길게 누르면 삭제돼요.
         </Text>
       </Card>
 
@@ -129,7 +139,7 @@ export default function ExerciseDetail() {
         </Text>
       ) : null}
 
-      {!isLast && next ? (
+      {next ? (
         <Text v="small" faint style={{ textAlign: 'center' }}>
           다음: {findExercise(st, next.exerciseId)?.nameKo}
         </Text>

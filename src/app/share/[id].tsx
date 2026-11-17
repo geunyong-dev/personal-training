@@ -4,6 +4,7 @@ import { useRef, useState, type ComponentRef } from 'react';
 import { Platform, Switch, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
+import { WEEKDAY_KO } from '@/domain/plan';
 import { completedSetCount, sessionDurationSec, sessionVolume } from '@/domain/calc';
 import { formatWeight } from '@/domain/rules';
 import { findExercise, useApp } from '@/store/app-store';
@@ -25,7 +26,12 @@ export default function ShareCard() {
   const ref = useRef<ComponentRef<typeof View>>(null);
   const [withMemo, setWithMemo] = useState(false);
   const [busy, setBusy] = useState(false);
-  if (!s) return <Screen><Empty title="세션을 찾을 수 없어요" /></Screen>;
+  if (!s)
+    return (
+      <Screen>
+        <Empty title="세션을 찾을 수 없어요" />
+      </Screen>
+    );
 
   const unit = st.settings.unit;
   const prs = st.prs.filter((p) => p.sessionId === s.id && p.type === 'max_weight');
@@ -35,7 +41,11 @@ export default function ShareCard() {
     if (Platform.OS === 'web') return notice('공유 카드는 모바일 앱에서 만들 수 있어요');
     setBusy(true);
     try {
-      const uri = await captureRef(ref as unknown as Parameters<typeof captureRef>[0], { format: 'png', quality: 1, result: 'tmpfile' });
+      const uri = await captureRef(ref as unknown as Parameters<typeof captureRef>[0], {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
       await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: '오늘 운동 공유' });
     } catch {
       notice('이미지를 만들지 못했어요');
@@ -46,11 +56,19 @@ export default function ShareCard() {
 
   return (
     <Screen edges={['bottom']}>
-      <View ref={ref} collapsable={false} style={{ backgroundColor: C.bg, borderRadius: R.lg, padding: S.xl, gap: S.md, borderWidth: 1, borderColor: C.border }}>
+      <View
+        ref={ref}
+        collapsable={false}
+        style={{ backgroundColor: C.bg, borderRadius: R.lg, padding: S.xl, gap: S.md, borderWidth: 1, borderColor: C.border }}>
         <Text v="small" color={C.accent}>
-          {new Date(s.startedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
+          {new Date(s.startedAt).toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'short',
+          })}
         </Text>
-        <Text v="h1">{st.routines.find((r) => r.id === s.routineId)?.name ?? '오늘의 운동'}</Text>
+        <Text v="h1">{s.title ?? (s.planDay != null ? `${WEEKDAY_KO[s.planDay]}요일 운동` : '오늘의 운동')}</Text>
         <Row gap={S.lg} style={{ alignItems: 'flex-start' }}>
           <Metric label="시간" value={`${Math.round(sessionDurationSec(s) / 60)}분`} />
           <Metric label="세트" value={String(completedSetCount(s))} />
@@ -64,7 +82,7 @@ export default function ShareCard() {
             <Row key={ex.id} style={{ justifyContent: 'space-between' }}>
               <Text style={{ flex: 1 }} numberOfLines={1}>
                 {findExercise(st, ex.exerciseId)?.nameKo}
-                {prIds.has(ex.exerciseId) ? <Text color={C.accent}>  PR</Text> : null}
+                {prIds.has(ex.exerciseId) ? <Text color={C.accent}> PR</Text> : null}
               </Text>
               <Text dim style={{ fontVariant: ['tabular-nums'] }}>
                 {ex.sets.length}세트 · {best?.weight ? `${formatWeight(best.weight, unit)} × ` : ''}
@@ -86,7 +104,12 @@ export default function ShareCard() {
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text>메모 포함</Text>
-          <Switch value={withMemo} onValueChange={setWithMemo} trackColor={{ true: C.accent, false: C.surface2 }} thumbColor="#ffffff" />
+          <Switch
+            value={withMemo}
+            onValueChange={setWithMemo}
+            trackColor={{ true: C.accent, false: C.surface2 }}
+            thumbColor="#ffffff"
+          />
         </Row>
         <Text v="small" faint>
           체중·키 같은 신체 정보는 공유 카드에 들어가지 않아요.

@@ -59,13 +59,13 @@ export function clampRest(sec: number): number {
   return Math.min(LIMITS.restMaxSec, Math.max(LIMITS.restMinSec, Math.round(sec)));
 }
 
-/** 휴식 시간 우선순위: 운동별 설정 > 루틴 설정 > 전역 기본값 (5.3) */
+/** 휴식 시간 우선순위: 운동별 설정 > 계획 설정 > 전역 기본값 (5.3) */
 export function resolveRestSec(
   exerciseDefault: number | undefined,
-  routineRest: number | undefined,
+  planRest: number | undefined,
   settings: Pick<Settings, 'defaultRestSec'>,
 ): number {
-  return clampRest(exerciseDefault ?? routineRest ?? settings.defaultRestSec);
+  return clampRest(exerciseDefault ?? planRest ?? settings.defaultRestSec);
 }
 
 export function lastActivityAt(session: Session): number {

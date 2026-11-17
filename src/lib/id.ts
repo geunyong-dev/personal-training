@@ -1,4 +1,4 @@
-// Supabase uuid 컬럼과 맞추기 위해 UUID v4를 쓴다.
+// 기기 ID·세션 ID 등에 쓰는 UUID v4
 export function uuid(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c?.randomUUID) return c.randomUUID();

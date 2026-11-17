@@ -7,7 +7,7 @@ export const IC = {
   home: i('house.fill', 'home'),
   workout: i('dumbbell.fill', 'fitness_center'),
   history: i('calendar', 'calendar_month'),
-  routine: i('list.bullet.rectangle', 'list_alt'),
+  plan: i('list.bullet.rectangle', 'list_alt'),
   settings: i('gearshape.fill', 'settings'),
   add: i('plus', 'add'),
   minus: i('minus', 'remove'),

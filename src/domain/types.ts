@@ -1,8 +1,6 @@
-// 도메인 타입. 정의서 6장(데이터 모델 초안)과 1:1로 대응한다.
+// 도메인 타입
 
 export type Unit = 'kg' | 'lb';
-export type Goal = 'muscle' | 'strength' | 'fat_loss' | 'health';
-export type Level = 'beginner' | 'intermediate' | 'advanced';
 export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'kettlebell' | 'band';
 export type BodyPart =
   | 'chest'
@@ -18,20 +16,14 @@ export type BodyPart =
   | 'cardio';
 export type ExerciseType = 'weighted' | 'bodyweight' | 'cardio';
 export type SetKind = 'normal' | 'warmup' | 'drop' | 'failure';
-export type RoutineSource = 'manual' | 'template' | 'claude';
-export type RoutineStatus = 'proposed' | 'active' | 'archived';
 export type SessionEndReason = 'manual' | 'auto';
 export type PRType = 'max_weight' | 'e1rm' | 'volume';
 
-export interface Profile {
+/** 기기별 목업 인증으로 만든 로컬 사용자 */
+export interface LocalUser {
+  id: string; // 기기 ID (uuid). 동기화 서버·MCP에서 사용자 키로 쓴다
   nickname: string;
-  goal: Goal;
-  level: Level;
-  weeklyFreq: number; // 1~7
-  equipment: Equipment[];
-  heightCm?: number;
-  weightKg?: number;
-  consentBody: boolean; // 키·체중 별도 선택 동의 (5.7)
+  createdAt: string;
 }
 
 export interface Settings {
@@ -52,22 +44,29 @@ export interface Exercise {
   defaultRestSec?: number; // 운동별 휴식 (우선순위 1)
 }
 
-export interface RoutineItem {
+/** 요일: 0=월 … 6=일 */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** 계획의 운동 한 항목: 몇 세트 몇 회 몇 kg */
+export interface PlanItem {
   exerciseId: string;
-  targetSets: number;
-  targetReps: number;
-  targetWeight?: number;
-  restSec?: number; // 루틴 내 휴식 (우선순위 2)
+  sets: number;
+  reps: number;
+  weightKg?: number;
+  restSec?: number;
 }
 
-export interface Routine {
-  id: string;
-  name: string;
-  source: RoutineSource;
-  status: RoutineStatus;
-  items: RoutineItem[];
-  note?: string; // Claude 제안 사유 등
-  createdAt: string;
+export interface DayPlan {
+  title?: string; // 예: "가슴·삼두"
+  items: PlanItem[];
+  note?: string;
+  source: 'user' | 'claude';
+  updatedAt: string;
+}
+
+/** 1주 단위 운동 계획. 요일별로 미리 정해 두고 매일 그 계획으로 운동한다 */
+export interface WeeklyPlan {
+  days: Partial<Record<Weekday, DayPlan>>;
   updatedAt: string;
 }
 
@@ -85,13 +84,14 @@ export interface WorkoutSet {
 export interface SessionExercise {
   id: string;
   exerciseId: string;
-  restSec?: number; // 루틴에서 넘어온 휴식 값
+  restSec?: number; // 계획에서 넘어온 휴식 값
   sets: WorkoutSet[];
 }
 
 export interface Session {
   id: string;
-  routineId?: string;
+  planDay?: Weekday; // 어떤 요일 계획으로 시작했는지
+  title?: string;
   startedAt: string;
   endedAt?: string;
   endReason?: SessionEndReason;

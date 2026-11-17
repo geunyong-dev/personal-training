@@ -1,4 +1,3 @@
-import { EXERCISES } from '@/data/exercises';
 import {
   detectNewPRs,
   estimate1RM,
@@ -7,7 +6,7 @@ import {
   overloadWarning,
   sessionVolume,
 } from '../calc';
-import { recommendRoutines } from '../recommend';
+import { currentSetIndex, footerAction, parseWeekday, sessionFromPlan, validatePlanItem, weekdayOf } from '../plan';
 import {
   formatWeight,
   isSavable,
@@ -119,21 +118,46 @@ describe('rules', () => {
   });
 });
 
-describe('recommend', () => {
-  it('주 3회 이하는 전신, 4회는 상/하체, 5회 이상은 3분할', () => {
-    const base = { goal: 'muscle' as const, level: 'intermediate' as const, equipment: ['barbell', 'dumbbell', 'machine', 'cable'] as const };
-    expect(recommendRoutines({ ...base, equipment: [...base.equipment], weeklyFreq: 3 }, EXERCISES)).toHaveLength(1);
-    expect(recommendRoutines({ ...base, equipment: [...base.equipment], weeklyFreq: 4 }, EXERCISES)).toHaveLength(2);
-    expect(recommendRoutines({ ...base, equipment: [...base.equipment], weeklyFreq: 5 }, EXERCISES)).toHaveLength(3);
+describe('plan', () => {
+  it('요일: 월=0 … 일=6', () => {
+    expect(weekdayOf(new Date('2026-11-16T12:00:00'))).toBe(0); // 월
+    expect(weekdayOf(new Date('2026-11-22T12:00:00'))).toBe(6); // 일
+    expect(parseWeekday('wed')).toBe(2);
+    expect(parseWeekday(5)).toBe(5);
+    expect(parseWeekday('x')).toBeNull();
   });
 
-  it('맨몸만 있으면 맨몸 운동만 추천', () => {
-    const [r] = recommendRoutines(
-      { goal: 'health', level: 'beginner', weeklyFreq: 3, equipment: ['bodyweight'] },
-      EXERCISES,
+  it('계획 항목 검증', () => {
+    expect(validatePlanItem({ exerciseId: 'a', sets: 3, reps: 10, weightKg: 60 })).toBeNull();
+    expect(validatePlanItem({ exerciseId: 'a', sets: 0, reps: 10 })).not.toBeNull();
+    expect(validatePlanItem({ exerciseId: 'a', sets: 3, reps: 10, weightKg: 600 })).not.toBeNull();
+  });
+
+  it('계획으로 세션 생성: 세트 수·무게·횟수 반영', () => {
+    let n = 0;
+    const s = sessionFromPlan(
+      { title: '가슴', source: 'user', updatedAt: '', items: [{ exerciseId: 'bench-press', sets: 3, reps: 8, weightKg: 80 }] },
+      0,
+      () => `id${n++}`,
     );
-    const byId = new Map(EXERCISES.map((e) => [e.id, e]));
-    expect(r.items.length).toBeGreaterThan(0);
-    expect(r.items.every((i) => byId.get(i.exerciseId)?.equipment === 'bodyweight')).toBe(true);
+    expect(s.planDay).toBe(0);
+    expect(s.exercises[0].sets).toHaveLength(3);
+    expect(s.exercises[0].sets[0]).toMatchObject({ weight: 80, reps: 8 });
+  });
+
+  it('하단 버튼: 세트 완료 → 마지막 세트면 다음 운동 → 마지막 운동이면 운동 완료', () => {
+    const mk = (done: boolean[]) => ({
+      id: 'e',
+      exerciseId: 'x',
+      sets: done.map((d, i) => ({ id: `s${i}`, kind: 'normal' as const, weight: 0, reps: 1, completedAt: d ? 't' : undefined })),
+    });
+    const s: Session = { id: 's', startedAt: '', updatedAt: '', exercises: [mk([true, false, false]), mk([false, false])] };
+    expect(footerAction(s, 0)).toBe('complete_set');
+    expect(currentSetIndex(s.exercises[0])).toBe(1);
+    s.exercises[0] = mk([true, true, false]);
+    expect(footerAction(s, 0)).toBe('next_exercise');
+    expect(footerAction(s, 1)).toBe('complete_set');
+    s.exercises[1] = mk([true, false]);
+    expect(footerAction(s, 1)).toBe('finish');
   });
 });

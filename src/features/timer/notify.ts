@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 export const REST_CHANNEL = 'rest-timer';
 export const REST_WARN_CHANNEL = 'rest-timer-warn';
+export const WORKOUT_CHANNEL = 'workout-ongoing';
 
 let initialized = false;
 
@@ -16,7 +17,8 @@ export async function initNotifications(): Promise<void> {
   Notifications.setNotificationHandler({
     handleNotification: async (n) => {
       // 앱이 켜져 있으면 화면 안의 타이머가 보이므로 경고 알림은 배너를 띄우지 않는다
-      const isWarn = n.request.content.data?.kind === 'rest-warn';
+      const kind = n.request.content.data?.kind;
+      const isWarn = kind === 'rest-warn' || kind === 'workout-ongoing';
       return {
         shouldShowBanner: !isWarn,
         shouldShowList: !isWarn,
@@ -32,6 +34,12 @@ export async function initNotifications(): Promise<void> {
       importance: AndroidImportance.MAX,
       vibrationPattern: [0, 400, 200, 400],
       sound: 'default',
+    });
+    await Notifications.setNotificationChannelAsync(WORKOUT_CHANNEL, {
+      name: '운동 진행 중',
+      importance: AndroidImportance.LOW, // 소리·진동 없이 알림창에 상시 표시
+      vibrationPattern: null,
+      sound: null,
     });
     await Notifications.setNotificationChannelAsync(REST_WARN_CHANNEL, {
       name: '휴식 종료 10초 전',
