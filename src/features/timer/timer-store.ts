@@ -19,7 +19,11 @@ interface TimerState {
   context: RestContext | null;
   scheduled: ScheduledIds | null;
   sound: boolean;
+  /** 운동 화면 바텀시트 표시 여부: 세트 완료(타이머 시작) 때 올라오고 타이머가 끝나면 내려간다 */
+  sheetVisible: boolean;
 
+  showSheet: () => void;
+  hideSheet: () => void;
   start: (sec: number, ctx: RestContext, opts?: { sound?: boolean }) => Promise<void>;
   adjust: (deltaSec: number) => Promise<void>;
   pause: () => Promise<void>;
@@ -54,7 +58,7 @@ export const useRestTimer = create<TimerState>()(
 
       const clear = async () => {
         const { scheduled } = get();
-        set({ startMs: null, endsAt: null, pausedRemainingMs: null, context: null, scheduled: null });
+        set({ startMs: null, endsAt: null, pausedRemainingMs: null, context: null, scheduled: null, sheetVisible: false });
         await cancelRestNotifications(scheduled);
         await endRestActivity();
       };
@@ -67,6 +71,10 @@ export const useRestTimer = create<TimerState>()(
         context: null,
         scheduled: null,
         sound: true,
+        sheetVisible: false,
+
+        showSheet: () => set({ sheetVisible: true }),
+        hideSheet: () => set({ sheetVisible: false }),
 
         start: async (sec, ctx, opts) => {
           const total = clampRest(sec);
@@ -79,6 +87,7 @@ export const useRestTimer = create<TimerState>()(
             totalSec: total,
             context: ctx,
             sound: opts?.sound ?? true,
+            sheetVisible: true,
           });
           await reschedule(endsAt, now);
         },
@@ -132,7 +141,7 @@ export const useRestTimer = create<TimerState>()(
           const left = endsAt - Date.now();
           if (left <= 0) {
             // 알림은 이미 울렸으니 상태만 정리
-            set({ startMs: null, endsAt: null, context: null, scheduled: null });
+            set({ startMs: null, endsAt: null, context: null, scheduled: null, sheetVisible: false });
             void endRestActivity();
             return 0;
           }
