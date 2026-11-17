@@ -16,6 +16,7 @@ MCP를 통해서 AI 에이전트를 연동하여, 헬스기록 및 식단을 관
 src/
   app/                  화면 (expo-router)
     (tabs)/             홈 · 운동 · 기록 · 루틴 · 설정
+    (tabs)/workout/     오늘의 운동 목록(index) → 운동별 페이지([exerciseId]), 휴식 타이머 바텀시트
     onboarding/         시작 → 프로필 → Claude 연결(필수)
     session/[id]        세션 상세·PR
     routine/[id]        루틴 편집 (Claude 제안 승인 포함)

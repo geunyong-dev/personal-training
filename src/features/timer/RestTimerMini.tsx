@@ -15,7 +15,7 @@ export function RestTimerMini() {
   const pathname = usePathname();
   const adjust = useRestTimer((s) => s.adjust);
   const skip = useRestTimer((s) => s.skip);
-  if (!running || pathname === '/workout') return null;
+  if (!running || pathname.startsWith('/workout')) return null;
   return (
     <Pressable style={styles.bar} onPress={() => router.navigate('/workout')}>
       <Row>
