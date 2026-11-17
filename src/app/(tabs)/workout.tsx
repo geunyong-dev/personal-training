@@ -151,19 +151,23 @@ function ActiveSession({ session }: { session: Session }) {
               />
             </Row>
             <SetHeader unit={unit} bodyweight={bw} />
-            {ex.sets.map((set, i) => (
+            {ex.sets.map((set, i) => {
+              const sameKind = hints.filter((h) => h.kind === set.kind);
+              const nth = ex.sets.slice(0, i).filter((x) => x.kind === set.kind).length;
+              return (
               <SetRow
                 key={set.id}
                 index={i}
                 set={set}
                 unit={unit}
                 bodyweight={bw}
-                hint={hints[i] ?? hints.at(-1)}
+                hint={sameKind[nth] ?? sameKind.at(-1) ?? hints.at(-1)}
                 onChange={(patch) => st.updateSet(ex.id, set.id, patch)}
                 onToggle={() => void onToggle(ex, set.id)}
                 onRemove={() => st.removeSet(ex.id, set.id)}
               />
-            ))}
+              );
+            })}
             <Button
               small
               kind="secondary"

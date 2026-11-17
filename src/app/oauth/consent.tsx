@@ -52,7 +52,7 @@ export default function OAuthConsent() {
       <Card>
         <Text v="h3">허용하면 할 수 있는 일</Text>
         <Text dim>· 프로필 요약(목표·경력·주 횟수·장비), 최근 12주 운동 기록, 루틴, 회복 상태 보기</Text>
-        <Text dim>· 루틴을 "제안"으로 보내기 (앱에서 승인해야 반영돼요)</Text>
+        <Text dim>· 루틴을 &lsquo;제안&rsquo;으로 보내기 (앱에서 승인해야 반영돼요)</Text>
         <Text dim>· 세션에 메모 남기기</Text>
         <Text v="h3" style={{ marginTop: 8 }}>할 수 없는 일</Text>
         <Text dim>· 기존 기록 수정·삭제, 실명·이메일·연락처 보기</Text>

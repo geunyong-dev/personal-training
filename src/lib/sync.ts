@@ -59,7 +59,7 @@ export const toRow = {
   }),
 };
 
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 
 export const fromRow = {
   routine: (r: Row): Routine => ({

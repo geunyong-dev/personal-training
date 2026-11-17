@@ -95,8 +95,15 @@ export function SetRow({
       />
       <Pressable
         onPress={() => {
-          commitWeight(w);
-          commitReps(r);
+          // 빈 칸이면 회색 힌트(직전 기록) 값으로 완료 처리
+          if (!done && hint && !w && !bodyweight) {
+            setW(show(hint.weight));
+            onChange({ weight: hint.weight });
+          } else commitWeight(w);
+          if (!done && hint && !r) {
+            setR(String(hint.reps));
+            onChange({ reps: hint.reps });
+          } else commitReps(r);
           onToggle();
         }}
         style={[styles.check, done && { backgroundColor: C.accent }]}

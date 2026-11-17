@@ -20,11 +20,8 @@ export function useCountdown() {
   }, [endsAt]);
 
   useEffect(() => {
-    if (!running) {
-      setLeftMs(0);
-      return;
-    }
-    const id = setInterval(() => {
+    if (!running) return;
+    const update = () => {
       const left = useRestTimer.getState().tick();
       setLeftMs(left);
       if (Platform.OS === 'web' || paused != null) return;
@@ -33,11 +30,16 @@ export function useCountdown() {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
       if (left === 0) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 250);
-    return () => clearInterval(id);
+    };
+    const first = setTimeout(update, 0); // 시작·조정 직후 바로 반영
+    const id = setInterval(update, 250);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [running, paused, endsAt]);
 
-  return { running, paused: paused != null, leftMs, totalSec };
+  return { running, paused: paused != null, leftMs: running ? leftMs : 0, totalSec };
 }
 
 export function fmtClock(ms: number): string {

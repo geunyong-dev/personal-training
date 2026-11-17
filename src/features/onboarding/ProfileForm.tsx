@@ -94,7 +94,7 @@ export function ProfileForm({
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={{ flex: 1 }}>키·체중 저장에 동의 (선택)</Text>
-          <Switch value={consentBody} onValueChange={setConsentBody} trackColor={{ true: C.accent }} />
+          <Switch value={consentBody} onValueChange={setConsentBody} trackColor={{ true: C.accent, false: C.surface2 }} thumbColor="#ffffff" />
         </Row>
         <Text v="small" faint>
           동의하지 않아도 모든 기능을 쓸 수 있어요. 키·체중은 광고에 쓰지 않아요.

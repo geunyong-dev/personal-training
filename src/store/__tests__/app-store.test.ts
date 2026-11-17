@@ -1,3 +1,5 @@
+import { selectActiveSession, useApp } from '../app-store';
+
 jest.mock('@/store/storage', () => {
   const { createJSONStorage } = jest.requireActual('zustand/middleware');
   const mem = new Map<string, string>();
@@ -9,8 +11,6 @@ jest.mock('@/store/storage', () => {
     })),
   };
 });
-
-import { selectActiveSession, useApp } from '../app-store';
 
 const profile = {
   nickname: '근용',

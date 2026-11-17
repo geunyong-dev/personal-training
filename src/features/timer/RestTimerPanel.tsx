@@ -30,7 +30,7 @@ export function RestTimerPanel() {
           다음: {ctx.exerciseName} · {ctx.nextSetLabel}
         </Text>
       ) : null}
-      <Row gap={S.sm}>
+      <Row gap={S.sm} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
         <Button small kind="secondary" icon={IC.minus} title={`${LIMITS.restAdjustSec}초`} onPress={() => void adjust(-LIMITS.restAdjustSec)} />
         <Button small kind="secondary" icon={IC.add} title={`${LIMITS.restAdjustSec}초`} onPress={() => void adjust(LIMITS.restAdjustSec)} />
         <Button

@@ -1,6 +1,7 @@
 // 휴식 타이머 로컬 알림 (정의서 5.3)
 // 종료 시각 기준으로 예약해 두므로 앱이 백그라운드이거나 종료돼도 알림이 울린다.
 import * as Notifications from 'expo-notifications';
+import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 export const REST_CHANNEL = 'rest-timer';
@@ -28,13 +29,13 @@ export async function initNotifications(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(REST_CHANNEL, {
       name: '휴식 타이머 종료',
-      importance: Notifications.AndroidImportance.MAX,
+      importance: AndroidImportance.MAX,
       vibrationPattern: [0, 400, 200, 400],
       sound: 'default',
     });
     await Notifications.setNotificationChannelAsync(REST_WARN_CHANNEL, {
       name: '휴식 종료 10초 전',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: AndroidImportance.HIGH,
       vibrationPattern: [0, 200],
       sound: null,
     });

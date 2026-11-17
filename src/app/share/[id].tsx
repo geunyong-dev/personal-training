@@ -51,7 +51,7 @@ export default function ShareCard() {
           {new Date(s.startedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
         </Text>
         <Text v="h1">{st.routines.find((r) => r.id === s.routineId)?.name ?? '오늘의 운동'}</Text>
-        <Row gap={S.lg}>
+        <Row gap={S.lg} style={{ alignItems: 'flex-start' }}>
           <Metric label="시간" value={`${Math.round(sessionDurationSec(s) / 60)}분`} />
           <Metric label="세트" value={String(completedSetCount(s))} />
           <Metric label="볼륨" value={formatWeight(sessionVolume(s), unit)} />
@@ -86,7 +86,7 @@ export default function ShareCard() {
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text>메모 포함</Text>
-          <Switch value={withMemo} onValueChange={setWithMemo} trackColor={{ true: C.accent }} />
+          <Switch value={withMemo} onValueChange={setWithMemo} trackColor={{ true: C.accent, false: C.surface2 }} thumbColor="#ffffff" />
         </Row>
         <Text v="small" faint>
           체중·키 같은 신체 정보는 공유 카드에 들어가지 않아요.

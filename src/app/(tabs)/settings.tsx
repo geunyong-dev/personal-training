@@ -96,11 +96,11 @@ export default function Settings() {
           </Row>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text>세트 완료 시 자동 시작</Text>
-            <Switch value={st.settings.autoStartRest} onValueChange={(v) => st.updateSettings({ autoStartRest: v })} trackColor={{ true: C.accent }} />
+            <Switch value={st.settings.autoStartRest} onValueChange={(v) => st.updateSettings({ autoStartRest: v })} trackColor={{ true: C.accent, false: C.surface2 }} thumbColor="#ffffff" />
           </Row>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text>종료 소리</Text>
-            <Switch value={st.settings.restSound} onValueChange={(v) => st.updateSettings({ restSound: v })} trackColor={{ true: C.accent }} />
+            <Switch value={st.settings.restSound} onValueChange={(v) => st.updateSettings({ restSound: v })} trackColor={{ true: C.accent, false: C.surface2 }} thumbColor="#ffffff" />
           </Row>
           <Button small kind="ghost" title="알림 권한 설정 열기" onPress={() => void Linking.openSettings()} />
         </Card>

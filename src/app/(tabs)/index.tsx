@@ -78,7 +78,7 @@ export default function Home() {
         />
       </Card>
 
-      <Row gap={S.md}>
+      <Row gap={S.md} style={{ alignItems: 'stretch' }}>
         <Stat label="이번 주 운동" value={`${thisWeek.length}회`} sub={`목표 ${st.profile?.weeklyFreq ?? '-'}회`} />
         <Stat label="이번 주 볼륨" value={formatWeight(thisWeek.reduce((a, s) => a + sessionVolume(s), 0), st.settings.unit)} />
       </Row>
