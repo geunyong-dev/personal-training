@@ -72,3 +72,11 @@ it('세션을 지우면 PR을 다시 계산하고 삭제 목록에 남긴다', (
   expect(max()).toBe(60);
   expect(useApp.getState().deletedSessionIds).toContain(heavy.id);
 });
+
+it('인증하면 서버용 기기 비밀키가 만들어지고, 초기화하면 지워진다', () => {
+  useApp.getState().authenticate('근용');
+  expect(useApp.getState().deviceSecret).toMatch(/^[0-9a-f]{64}$/);
+  useApp.getState().resetAll();
+  expect(useApp.getState().deviceSecret).toBeNull();
+  expect(useApp.getState().user).toBeNull();
+});

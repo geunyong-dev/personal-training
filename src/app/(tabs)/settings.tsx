@@ -6,7 +6,7 @@ import { Linking, Pressable, Switch, View } from 'react-native';
 import { sessionVolume } from '@/domain/calc';
 import { planSetCount, WEEKDAY_KO, WEEKDAYS, weekdayOf } from '@/domain/plan';
 import { formatWeight } from '@/domain/rules';
-import { pingServer, syncNow } from '@/lib/companion';
+import { isInsecureRemote, pingServer, rotateMcpToken, syncNow } from '@/lib/companion';
 import { exportCsv } from '@/lib/export';
 import { findExercise, selectFinishedSessions, useApp } from '@/store/app-store';
 import { confirm, notice } from '@/ui/confirm';
@@ -22,25 +22,29 @@ export default function Settings() {
   const finished = selectFinishedSessions(st);
   const [url, setUrl] = useState(st.serverUrl);
   const [checking, setChecking] = useState(false);
+  const [showUrl, setShowUrl] = useState(false);
   const today = weekdayOf();
 
   const connect = async () => {
     const u = url.trim().replace(/\/+$/, '');
-    if (!/^https?:\/\//.test(u)) return notice('주소를 확인해 주세요', '예: http://192.168.0.10:8787');
+    if (!/^https?:\/\//.test(u)) return notice('주소를 확인해 주세요', '예: https://your-server.fly.dev');
     setChecking(true);
     const ok = await pingServer(u);
     setChecking(false);
-    if (!ok) return notice('서버에 연결할 수 없어요', 'PC에서 npm run server 가 실행 중인지, 같은 와이파이인지 확인해 주세요.');
+    if (!ok) return notice('서버에 연결할 수 없어요', '주소와 인터넷 연결을 확인해 주세요.');
     st.setServerUrl(u);
     await syncNow();
-    notice('동기화 서버에 연결했어요');
+    const err = useApp.getState().mcp.error;
+    notice(err ? '연결은 됐지만 동기화에 실패했어요' : '동기화 서버에 연결했어요', err);
   };
 
   const mcp = st.mcp;
+  // 렌더 중 getState()를 부르면 React Compiler가 값을 고정해 버리므로 구독한 상태에서 만든다
+  const mcpUrl = st.serverUrl && st.mcpToken ? `${st.serverUrl}/mcp/${st.mcpToken}` : null;
   const status = !st.serverUrl
     ? { color: C.textFaint, text: '동기화 서버 미설정' }
-    : !mcp.serverReachable
-      ? { color: C.warn, text: '서버에 연결할 수 없음' }
+    : !mcp.serverReachable || mcp.error
+      ? { color: C.warn, text: mcp.serverReachable ? '동기화 실패' : '서버에 연결할 수 없음' }
       : mcp.connected
         ? { color: C.good, text: 'Claude 연결됨' }
         : { color: C.info, text: '서버 연결됨 · Claude 호출 기록 없음' };
@@ -66,8 +70,15 @@ export default function Settings() {
         <Card>
           <Row>
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: status.color }} />
-            <Text v="h3">{status.text}</Text>
+            <Text v="h3" style={{ flex: 1 }}>
+              {status.text}
+            </Text>
           </Row>
+          {mcp.error && st.serverUrl ? (
+            <Text v="small" color={C.warn}>
+              {mcp.error}
+            </Text>
+          ) : null}
           {mcp.lastCallAt ? (
             <Text v="small" dim>
               마지막 Claude 호출: {new Date(mcp.lastCallAt).toLocaleString('ko-KR')}
@@ -83,33 +94,62 @@ export default function Settings() {
             </Row>
           ))}
 
+          {mcpUrl ? (
+            <View style={{ gap: S.xs, marginTop: S.xs }}>
+              <Text v="small" dim>
+                Claude 연결 주소 (나만 쓰는 주소예요. 공유하지 마세요)
+              </Text>
+              <Text v="small" selectable numberOfLines={showUrl ? undefined : 1} style={{ fontFamily: 'monospace' }}>
+                {showUrl ? mcpUrl : `${st.serverUrl}/mcp/••••••••`}
+              </Text>
+              <Row>
+                <Button
+                  small
+                  style={{ flex: 1 }}
+                  icon={IC.link}
+                  title="주소 복사"
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(mcpUrl);
+                    notice('복사했어요', 'Claude 설정 → 커넥터 → 커스텀 커넥터 추가에 붙여 넣으세요.');
+                  }}
+                />
+                <Button small kind="secondary" title={showUrl ? '가리기' : '보기'} onPress={() => setShowUrl(!showUrl)} />
+                <Button
+                  small
+                  kind="secondary"
+                  title="재발급"
+                  onPress={async () => {
+                    if (!(await confirm('연결 주소 재발급', '지금 주소로 연결된 Claude는 끊겨요. 새 주소를 Claude에 다시 등록해야 해요.', '재발급', true))) return;
+                    try {
+                      await rotateMcpToken();
+                      notice('새 주소를 발급했어요');
+                    } catch {
+                      notice('재발급에 실패했어요', '인터넷 연결을 확인해 주세요.');
+                    }
+                  }}
+                />
+              </Row>
+            </View>
+          ) : null}
+
           <Field
-            label="PC 동기화 서버 주소"
-            placeholder="http://192.168.0.10:8787"
+            label="동기화 서버 주소"
+            placeholder="https://your-server.fly.dev"
             value={url}
             onChangeText={setUrl}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
           />
-          <Row>
-            <Button small style={{ flex: 1 }} title={checking ? '확인 중…' : '연결·동기화'} disabled={checking} onPress={() => void connect()} />
-            {st.serverUrl ? (
-              <Button
-                small
-                kind="secondary"
-                icon={IC.link}
-                title="MCP 주소 복사"
-                onPress={async () => {
-                  await Clipboard.setStringAsync(`${st.serverUrl}/mcp`);
-                  notice('복사했어요', `${st.serverUrl}/mcp`);
-                }}
-              />
-            ) : null}
-          </Row>
+          {isInsecureRemote(url.trim()) ? (
+            <Text v="small" color={C.warn}>
+              인터넷에서 쓰려면 https:// 주소가 필요해요 (http는 iOS에서 막혀요).
+            </Text>
+          ) : null}
+          <Button small title={checking ? '확인 중…' : '연결·동기화'} disabled={checking} onPress={() => void connect()} />
           <Text v="small" faint>
-            PC에서 npm run server 를 실행하고, 표시된 주소를 입력하세요. Claude Desktop에는 같은 PC의 MCP를 연결해요. 기록은 이 기기에 먼저 저장되고 서버에 올라가요
-            {st.lastSyncedAt ? ` (마지막 동기화 ${new Date(st.lastSyncedAt).toLocaleTimeString('ko-KR')})` : ''}.
+            기록은 이 기기에 먼저 저장되고, 인터넷이 될 때 서버로 올라가요. 어디서든(LTE·다른 와이파이) 동기화돼요
+            {st.lastSyncedAt ? ` · 마지막 동기화 ${new Date(st.lastSyncedAt).toLocaleString('ko-KR')}` : ''}.
           </Text>
         </Card>
       </Section>

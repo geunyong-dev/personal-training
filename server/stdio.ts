@@ -7,4 +7,5 @@ import { buildMcpServer } from './mcp';
 import { Store } from './store';
 
 const store = new Store();
-serveStdio(() => buildMcpServer(store));
+// 로컬 PC에서만 쓰는 연결이라 토큰 대신 WORKOUT_DEVICE_ID 또는 마지막 동기화 기기를 쓴다
+serveStdio(() => buildMcpServer(store, () => store.activeId()));

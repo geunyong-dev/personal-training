@@ -84,14 +84,17 @@ function toItems(lib: Exercise[], items: z.infer<typeof itemSchema>[]): PlanItem
   return bad ?? out;
 }
 
-export function buildMcpServer(store: Store): McpServer {
+/**
+ * @param deviceId 이 MCP 연결이 다루는 사용자(기기). HTTP는 MCP 토큰으로, stdio는 마지막 동기화 기기로 정한다
+ */
+export function buildMcpServer(store: Store, deviceId: () => string | null): McpServer {
   const server = new McpServer({ name: 'personal-training', version: '0.2.0' });
 
   /** 대상 사용자 데이터를 읽고, 호출을 기록한다 */
   const run = async (tool: string, fn: (d: DeviceData, save: (d: DeviceData) => void) => Result | Promise<Result>) => {
-    const id = store.activeId();
+    const id = deviceId();
     const d = id ? store.load(id) : null;
-    if (!id || !d) return fail('아직 앱과 동기화된 기기가 없어요. 앱 설정에서 동기화 서버 주소를 입력해 주세요.');
+    if (!id || !d) return fail('아직 앱과 동기화된 기기가 없어요. 앱 설정에서 동기화 서버에 연결해 주세요.');
     let res: Result;
     try {
       res = await fn(d, (next) => store.save(next));

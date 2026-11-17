@@ -24,6 +24,7 @@ export default function PlanDay() {
   const startAfter = params.start === '1';
   const saved = useApp((s) => s.plan.days[day]);
   const unit = useApp((s) => s.settings.unit);
+  const customExercises = useApp((s) => s.customExercises);
   const setDayPlan = useApp((s) => s.setDayPlan);
   const draft = usePlanDraft();
   const isToday = day === weekdayOf();
@@ -80,7 +81,7 @@ export default function PlanDay() {
         <Empty title="운동을 추가해 주세요" body="아래 '운동 추가'에서 오늘 할 운동을 고르고 세트·횟수·무게를 정해요." />
       ) : (
         draft.items.map((it, i) => {
-          const def = findExercise(useApp.getState(), it.exerciseId);
+          const def = findExercise({ customExercises }, it.exerciseId);
           const bw = def?.type === 'bodyweight';
           return (
             <Card key={`${it.exerciseId}-${i}`}>

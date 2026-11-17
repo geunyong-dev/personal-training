@@ -18,6 +18,7 @@ import type {
   WorkoutSet,
 } from '@/domain/types';
 import { nowIso, uuid } from '@/lib/id';
+import { newDeviceSecret } from '@/lib/secret';
 
 import { persistStorage } from './storage';
 
@@ -28,11 +29,14 @@ export interface McpStatus {
   lastCallAt?: string;
   recentCalls: { tool: string; at: string; ok: boolean }[];
   checkedAt?: string;
+  error?: string; // 마지막 동기화 실패 이유 (인증 실패 등)
 }
 
 export interface AppState {
   hydrated: boolean;
   user: LocalUser | null;
+  deviceSecret: string | null; // 서버에 이 기기를 증명하는 비밀키 (기기에만 저장)
+  mcpToken: string | null; // 서버가 발급한 Claude 연결 토큰
   settings: Settings;
   plan: WeeklyPlan;
   customExercises: Exercise[];
@@ -50,6 +54,7 @@ export interface AppState {
   updateSettings: (patch: Partial<Settings>) => void;
   setServerUrl: (url: string) => void;
   setMcpStatus: (s: McpStatus) => void;
+  setMcpToken: (t: string | null) => void;
 
   // 운동 라이브러리
   addCustomExercise: (e: Omit<Exercise, 'id' | 'isCustom'>) => Exercise;
@@ -81,15 +86,20 @@ export interface AppState {
 
 const DEFAULT_SETTINGS: Settings = { unit: 'kg', defaultRestSec: 90, autoStartRest: true, restSound: true };
 
+/** 빌드할 때 넣는 기본 동기화 서버 주소 (예: https://personal-training-sync.fly.dev) */
+const DEFAULT_SERVER_URL = (process.env.EXPO_PUBLIC_SYNC_URL ?? '').replace(/\/+$/, '');
+
 const INITIAL = {
   user: null,
+  deviceSecret: null,
+  mcpToken: null,
   settings: DEFAULT_SETTINGS,
   plan: { days: {}, updatedAt: '1970-01-01T00:00:00.000Z' } as WeeklyPlan,
   customExercises: [] as Exercise[],
   sessions: [] as Session[],
   prs: [] as PersonalRecord[],
   deletedSessionIds: [] as string[],
-  serverUrl: '',
+  serverUrl: DEFAULT_SERVER_URL,
   lastSyncedAt: null,
   mcp: { serverReachable: false, connected: false, recentCalls: [] } as McpStatus,
 };
@@ -148,13 +158,14 @@ export const useApp = create<AppState>()(
           const existing = get().user;
           if (existing) return existing; // 이미 인증한 기기는 다시 하지 않는다
           const user: LocalUser = { id: uuid(), nickname: nickname.trim(), createdAt: nowIso() };
-          set({ user });
+          set({ user, deviceSecret: newDeviceSecret(), mcpToken: null });
           return user;
         },
 
         updateSettings: (patch) => set((st) => ({ settings: { ...st.settings, ...patch } })),
         setServerUrl: (serverUrl) => set({ serverUrl: serverUrl.trim().replace(/\/+$/, '') }),
         setMcpStatus: (mcp) => set({ mcp }),
+        setMcpToken: (mcpToken) => set({ mcpToken }),
 
         addCustomExercise: (e) => {
           const ex: Exercise = { ...e, id: uuid(), isCustom: true };
@@ -272,10 +283,11 @@ export const useApp = create<AppState>()(
         },
 
         markSynced: (at, syncedDeletes) =>
-          set((st) => ({
-            lastSyncedAt: at,
-            deletedSessionIds: st.deletedSessionIds.filter((id) => !syncedDeletes.includes(id)),
-          })),
+          set((st) => {
+            const rest = st.deletedSessionIds.filter((id) => !syncedDeletes.includes(id));
+            // 배열이 그대로면 참조를 유지해 동기화가 다시 트리거되지 않게
+            return { lastSyncedAt: at, deletedSessionIds: rest.length === st.deletedSessionIds.length ? st.deletedSessionIds : rest };
+          }),
 
         resetAll: () => set({ ...INITIAL }),
       };
@@ -283,7 +295,7 @@ export const useApp = create<AppState>()(
     {
       name: 'workout-app',
       storage: persistStorage,
-      version: 2,
+      version: 3,
       partialize: ({ hydrated: _h, ...rest }) => rest,
       // v1(루틴·Supabase 시절) 데이터에서 기록만 살린다
       migrate: (old, version) => {
@@ -297,6 +309,8 @@ export const useApp = create<AppState>()(
             customExercises: o.customExercises ?? [],
           } as unknown as AppState;
         }
+        // v2 → v3: 서버 인증용 기기 비밀키 추가
+        if (version < 3 && o.user && !o.deviceSecret) return { ...o, deviceSecret: newDeviceSecret(), mcpToken: null } as AppState;
         return o as AppState;
       },
     },

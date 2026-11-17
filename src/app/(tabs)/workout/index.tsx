@@ -23,6 +23,7 @@ export default function WorkoutTab() {
 function NoActiveWorkout() {
   const today = weekdayOf();
   const plan = useApp((s) => s.plan.days[today]);
+  const customExercises = useApp((s) => s.customExercises);
   return (
     <Screen edges={[]}>
       <Stack.Screen options={{ title: '오늘의 운동', headerRight: undefined }} />
@@ -34,7 +35,7 @@ function NoActiveWorkout() {
           <Text v="h2">{plan.title ?? `${plan.items.length}개 운동`}</Text>
           {plan.items.map((it, i) => (
             <Text key={`${it.exerciseId}${i}`} v="small" dim>
-              {i + 1}. {findExercise(useApp.getState(), it.exerciseId)?.nameKo} · {it.sets}×{it.reps}
+              {i + 1}. {findExercise({ customExercises }, it.exerciseId)?.nameKo} · {it.sets}×{it.reps}
             </Text>
           ))}
           <Button icon={IC.play} title="오늘의 운동 시작" onPress={() => startTodayWorkout(today)} />
